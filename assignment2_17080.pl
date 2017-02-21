@@ -1,4 +1,4 @@
-candidate_number(12345).
+candidate_number(17080).
 
 solve_task(Task,Cost) :-
   ( part(1) -> solve_task_1_3(Task, Cost)
