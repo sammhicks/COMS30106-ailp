@@ -49,22 +49,17 @@ solve_task_bfs(Task, Current_Visited_Positions, [path(Current_Cost, Current_Dept
   filter_positions(Current_Visited_Positions, New_Path_Functors, Filtered_New_Path_Functors),
   insert_previous_paths(Filtered_New_Path_Functors, Current_Visited_Positions, New_Visited_Positions),
   append(Rest, Filtered_New_Path_Functors, New_Agenda),
-  sort(3, @=<, New_Agenda, Sorted_New_Agenda),
+  (   heuristic_sortable(Task)
+  ->  sort(3, @=<, New_Agenda, Sorted_New_Agenda)
+  ;   Sorted_New_Agenda = New_Agenda),
   solve_task_bfs(Task, New_Visited_Positions, Sorted_New_Agenda, Final_Path).
 
 
 % achieved(+Task, +Current_Path)
-achieved(go(Target), path(_Final_Cost, _Final_Depth, _Final_Heuristic, [Target|_])) :-
-  (   ground(Target)
-  ->  true
-  ;   Target = none).
+achieved(go(Target), path(_Final_Cost, _Final_Depth, _Final_Heuristic, [Target|_])).
 
-% TODO - Rewrite in our format
-%achieved(find(O),Current,RPath,Cost,NewPos) :-
-%  Current = [c(Cost,NewPos)|RPath],
-%  ( O=none    -> true
-%  ; otherwise -> RPath = [Last|_],map_adjacent(Last,_,O)
-%  ).
+achieved(find(Target), path(_Final_Cost, _Final_Depth, _Final_Heuristic, [Final_Position|_])) :-
+	map_adjacent(Final_Position, _, Target).
 
 % empty_map_adjacent(+Current_Position, -All_Empty_Adjacent_Positions)
 empty_map_adjacent(Current_Position, All_Empty_Adjacent_Positions) :-
@@ -121,6 +116,9 @@ construct_path(Task, Current_Cost, Current_Depth, Path, path(New_Cost, New_Depth
 calculate_heuristic(go(Target), Current_Position, Heuristic) :-
   map_distance(Target, Current_Position, Heuristic).
 
+calculate_heuristic(find(_), _Current_Position, 0).
+
+heuristic_sortable(go(_)).
 
 contains_visited_position(Existing_Costs, p(X, Y), Cost) :-
   get_dict(Y, Existing_Costs, Existing_Row),
