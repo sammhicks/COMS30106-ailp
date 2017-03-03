@@ -145,3 +145,31 @@ scan_map :-
   between(1, 20, X),
   map_adjacent(p(X, Y), _, _),
   false.
+
+actors(Actors) :-
+	actors([], Actors).
+
+actors(Current_Actors, All_Actors) :-
+	actor(Actor),
+	\+ memberchk(Actor, Current_Actors),
+	!,
+	actors([Actor|Current_Actors], All_Actors).
+
+actors(Actors, Actors).
+
+actor_with_all_links(_Actor, []).
+
+actor_with_all_links(Actor, [Link|Links]) :-
+	wp(Actor, WikiText),
+	wt_link(WikiText, Link),
+	actor_with_all_links(Actor, Links).
+
+filter_actors(_Links, [], []).
+
+filter_actors(Links, [Actor|Actors], All_Filtered_Actors) :-
+	(   actor_with_all_links(Actor, Links)
+	->  All_Filtered_Actors = [Actor|Filtered_Actors]
+	;   All_Filtered_Actors = Filtered_Actors),
+	!,
+	filter_actors(Links, Actors, Filtered_Actors).
+
