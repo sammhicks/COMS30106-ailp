@@ -18,22 +18,22 @@ filter_until_one(Actors, A) :-
 
 
 
-  actors(Actors) :-
-  	actors([], Actors).
+actors(Actors) :-
+  actors([], Actors).
 
-  actors(Current_Actors, All_Actors) :-
-  	actor(Actor),
-  	\+ memberchk(Actor, Current_Actors),
-  	!,
-  	actors([Actor|Current_Actors], All_Actors).
+actors(Current_Actors, All_Actors) :-
+  actor(Actor),
+  \+ memberchk(Actor, Current_Actors),
+  !,
+  actors([Actor|Current_Actors], All_Actors).
 
-  actors(Actors, Actors).
+actors(Actors, Actors).
 
-  filter_actors(_Link, [], []).
+filter_actors(_Link, [], []).
 
-  filter_actors(Link, [Actor|Actors], All_Filtered_Actors) :-
-  	(   wp(Actor, WikiText), wt_link(WikiText, Link)
-  	->  All_Filtered_Actors = [Actor|Filtered_Actors]
-  	;   All_Filtered_Actors = Filtered_Actors),
-  	!,
-  	filter_actors(Link, Actors, Filtered_Actors).
+filter_actors(Link, [Actor|Actors], All_Filtered_Actors) :-
+  (   wp(Actor, WikiText), wt_link(WikiText, Link)
+  ->  All_Filtered_Actors = [Actor|Filtered_Actors]
+  ;   All_Filtered_Actors = Filtered_Actors),
+  !,
+  filter_actors(Link, Actors, Filtered_Actors).
