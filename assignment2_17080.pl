@@ -7,32 +7,39 @@ solve_task(Task,Cost) :-
   ).
 
 %%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% solve_task_1_3(-Task, +Cost)
-solve_task_1_3(Task, [cost(Final_Cost), depth(Final_Depth)]) :-
+% solve_task_1_3(+Task, -Cost)
+solve_task_1_3(Task, [cost(Cost), depth(Depth)]) :-
   agent_current_position(oscar, Start_Position),
+  find_path(Task, Start_Position, _End_Position, Final_Path, Cost, Depth),
+  !, % Once we've found a solution, we hope that it's the best one
+  agent_do_moves(oscar, Final_Path),
+  !. % we're done, prune any remaing choice points
+
+% find_path(+Task, +Start_Position, -End_Position, -Path, -Cost, -Depth)
+find_path(Task, Start_Position, End_Position, Path, Final_Cost, Final_Depth) :-
   Start_Cost = 0,
   Start_Depth = 0,
   calculate_heuristic(Task, Start_Position, Start_Heuristic),
   Start_Path = path(Start_Cost, Start_Depth, Start_Heuristic, [Start_Position]),
   insert_visited_position(Start_Position, Start_Cost, costs{}, Start_Costs),
+  !,
   solve_task_bfs(
       Task,
       Start_Costs,
       [Start_Path],
-      path(Final_Cost, Final_Depth, _Final_Heuristic, Final_Reverse_Path)
+      path(Final_Cost, Final_Depth, _Final_Heuristic, Reverse_Path)
   ),
-  !, % Once we've found a solution, we hope that it's the best one
-  reverse(Final_Reverse_Path, [_Start_Position|Final_Path]),
-  agent_do_moves(oscar, Final_Path),
-  !. % we're done, prune any remaing choice points
+  Reverse_Path = [End_Position|_],
+  reverse(Reverse_Path, [_Start_Position|Path]).
+
 %%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% Part 4 (Optional) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-solve_task_4(Task,Cost):-
-  my_agent(Agent),
-  query_world( agent_current_position, [Agent,P] ),
-  solve_task_bt(Task,[c(0,P),P],0,R,Cost,_NewPos),
-  reverse(R,[_Init|Path]),
-  query_world( agent_do_moves, [Agent,Path] ).
+%solve_task_4(Task,Cost):-
+%  my_agent(Agent),
+%  query_world( agent_current_position, [Agent,P] ),
+%  solve_task_bt(Task,[c(0,P),P],0,R,Cost,_NewPos),
+%  reverse(R,[_Init|Path]),
+%  query_world( agent_do_moves, [Agent,Path] ).
 %%%%%%%%%% Part 4 (Optional) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
