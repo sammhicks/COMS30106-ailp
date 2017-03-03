@@ -157,19 +157,11 @@ actors(Current_Actors, All_Actors) :-
 
 actors(Actors, Actors).
 
-actor_with_all_links(_Actor, []).
+filter_actors(_Link, [], []).
 
-actor_with_all_links(Actor, [Link|Links]) :-
-	wp(Actor, WikiText),
-	wt_link(WikiText, Link),
-	actor_with_all_links(Actor, Links).
-
-filter_actors(_Links, [], []).
-
-filter_actors(Links, [Actor|Actors], All_Filtered_Actors) :-
-	(   actor_with_all_links(Actor, Links)
+filter_actors(Link, [Actor|Actors], All_Filtered_Actors) :-
+	(   wp(Actor, WikiText), wt_link(WikiText, Link)
 	->  All_Filtered_Actors = [Actor|Filtered_Actors]
 	;   All_Filtered_Actors = Filtered_Actors),
 	!,
-	filter_actors(Links, Actors, Filtered_Actors).
-
+	filter_actors(Link, Actors, Filtered_Actors).
