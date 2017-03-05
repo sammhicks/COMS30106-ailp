@@ -167,7 +167,7 @@ filter_positions(Visited_Positions, Maximum_Cost, [Path|Paths], All_Filtered_Pat
 	filter_positions(Visited_Positions, Maximum_Cost, Paths, Filtered_Paths).
 
 cost_too_high(Maximum_Cost, path(Cost, _Depth, _Heuristic, _Path)) :-
-	Cost > Maximum_Cost.
+	Cost >= Maximum_Cost.
 
 better_path_found(Visited_Positions, path(Cost, _Depth, _Heuristic, [Position|_])) :-
 	already_visited_position(Visited_Positions, Position, Visited_Cost),
