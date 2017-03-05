@@ -25,9 +25,8 @@ ask_next_oracle(Remaining_Actors, Our_Identity) :-
 		ask_next_oracle(Filtered_Actors, Our_Identity)
 	    ;   go_refuel(Start_Position, Current_Energy),
 		ask_next_oracle(Remaining_Actors, Our_Identity))
-	;   map_adjacent(Start_Position, _, c(_))
+	;   map_adjacent(Start_Position, _, c(_)) % If we're next to a station and can't find an oracle, it means that we can't find an oracle at all
 	->  !,
-	    format("Urk\n"),
 	    fail
 	;   go_refuel(Start_Position, Current_Energy),
 	    ask_next_oracle(Remaining_Actors, Our_Identity)).
