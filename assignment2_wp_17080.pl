@@ -77,7 +77,7 @@ all_discovered_oracles_acc(Position, Oracles, All_Oracles) :-
 	Oracle = o(N),
 	\+ memberchk(o(N, Oracle_Position, _), Oracles),
 	!,
-	calculate_heuristic(go(Oracle, Oracle_Position), Position, Heuristic),
+	calculate_heuristic(go(Oracle, Oracle_Position), Position, _Cost, Heuristic),
 	all_discovered_oracles_acc(Position, [o(N, Oracle_Position, Heuristic)|Oracles], All_Oracles).
 
 all_discovered_oracles_acc(_Position, Stations, Stations).
@@ -112,7 +112,7 @@ all_discovered_stations_acc(Position, Stations, All_Stations) :-
 	Station = c(N),
 	\+ memberchk(c(N, Station_Position, _), Stations),
 	!,
-	calculate_heuristic(go(Station, Station_Position), Position, Heuristic),
+	calculate_heuristic(go(Station, Station_Position), Position, _Cost, Heuristic),
 	all_discovered_stations_acc(Position, [c(N, Station_Position, Heuristic)|Stations], All_Stations).
 
 all_discovered_stations_acc(_Position, Stations, Stations).

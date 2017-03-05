@@ -49,7 +49,7 @@ solve_task_bfs(Task, _Maximum_Cost, State, Path, Discoveries) :-
 
 solve_task_bfs(Task, Maximum_Cost, Current_State, Final_Path, Final_Discoveries) :-
 	state_info(Current_State, Current_Agenda, Current_Visited_Positions, Current_Discoveries),
-	Current_Agenda = [path(Cost, Depth, _Heuristic, Path)|Other_Path_Functors],
+	agenda_head(Current_Agenda, path(Cost, Depth, _Heuristic, Path), Rest_Of_Agenda),
 	Path = [Current_Position|_],
 	find_adjacent_discoveries(Current_Position, Current_Discoveries, New_Discoveries),
 	discovery_info(New_Discoveries, Empty_Positions, _Oracles, _Stations),
@@ -58,11 +58,8 @@ solve_task_bfs(Task, Maximum_Cost, Current_State, Final_Path, Final_Discoveries)
 	construct_paths(Task, Cost, Depth, New_Paths, New_Path_Functors),
 	filter_positions(Current_Visited_Positions, Maximum_Cost, New_Path_Functors, Filtered_New_Path_Functors),
 	insert_previous_paths(Filtered_New_Path_Functors, Current_Visited_Positions, New_Visited_Positions),
-	append(Other_Path_Functors, Filtered_New_Path_Functors, New_Agenda),
-	(   heuristic_sortable(Task)
-	->  sort(3, @=<, New_Agenda, Sorted_New_Agenda)
-	;   Sorted_New_Agenda = New_Agenda),
-	state_info(New_State, Sorted_New_Agenda, New_Visited_Positions, Discoveries_Without_Empty),
+	update_agenda(Rest_Of_Agenda, Filtered_New_Path_Functors, New_Agenda),
+	state_info(New_State, New_Agenda, New_Visited_Positions, Discoveries_Without_Empty),
 	!,
 	solve_task_bfs(Task, Maximum_Cost, New_State, Final_Path, Final_Discoveries).
 
@@ -74,12 +71,30 @@ state_info(state(Agenda, Visited_Positions, Discoveries), Agenda, Visited_Positi
 init_state(Task, Start_Position, State) :-
 	Cost = 0,
 	Depth = 0,
-	calculate_heuristic(Task, Start_Position, Start_Heuristic),
-	Agenda = [path(Cost, Depth, Start_Heuristic, [Start_Position])],
+	init_agenda(Task, Start_Position, Cost, Depth, Agenda),
 	init_visited_positions(Init_Visited_Positions),
 	insert_visited_position(Start_Position, Cost, Init_Visited_Positions, Visited_Positions),
 	init_discoveries(Discoveries),
 	state_info(State, Agenda, Visited_Positions, Discoveries).
+
+
+init_agenda(Task, Start_Position, Cost, Depth, Agenda) :-
+	calculate_heuristic(Task, Start_Position, Cost, Heuristic),
+	Path = path(Cost, Depth, Heuristic, [Start_Position]),
+	singleton_heap(Agenda, Heuristic, Path).
+
+agenda_head(Current_Agenda, Path, Rest_Of_Agenda) :-
+	get_from_heap(Current_Agenda, _Heuristic, Path, Rest_Of_Agenda).
+
+
+update_agenda(Agenda, [], Agenda).
+
+update_agenda(Current_Agenda, [Path|Paths], Final_Agenda) :-
+	Path = path(_Cost, _Depth, Heuristic, _Path),
+	add_to_heap(Current_Agenda, Heuristic, Path, New_Agenda),
+	!,
+	update_agenda(New_Agenda, Paths, Final_Agenda).
+
 
 % visited positions
 
@@ -139,17 +154,21 @@ find_adjacent_discoveries(_Current_Position, Discoveries, Discoveries).
 
 % achieved(+Task, +Current_State, -Path, -Discoveries)
 achieved(go(Position), State, Path, Discoveries) :-
-	state_info(State, [Path|_], _Visited_Positions, Discoveries),
+	state_info(State, Agenda, _Visited_Positions, Discoveries),
+	agenda_head(Agenda, Path, _),
 	Path = path(_Final_Cost, _Final_Depth, _Final_Heuristic, [Position|_]).
 
+
 achieved(find(Target), State, Path, Final_Discoveries) :-
-	state_info(State, [Path|_], _Visited_Positions, Discoveries),
+	state_info(State, Agenda, _Visited_Positions, Discoveries),
+	agenda_head(Agenda, Path, _),
 	Path = path(_Final_Cost, _Final_Depth, _Final_Heuristic, [Final_Position|_]),
 	map_adjacent(Final_Position, _, Target),
 	find_adjacent_discoveries(Final_Position, Discoveries, Final_Discoveries).
 
 achieved(go(Target, Target_Position), State, Path, Discoveries) :-
-	state_info(State, [Path|_], _Visited_Positions, Discoveries),
+	state_info(State, Agenda, _Visited_Positions, Discoveries),
+	agenda_head(Agenda, Path, _),
 	Path = path(_Final_Cost, _Final_Depth, _Final_Heuristic, [Position|_]),
 	map_adjacent(Position, Target_Position, Target).
 
@@ -192,16 +211,12 @@ construct_path(Task, Current_Cost, Current_Depth, Path, path(New_Cost, New_Depth
 	New_Cost is Current_Cost + 1,
 	New_Depth is Current_Depth + 1,
 	Path = [Current_Position|_],
-	calculate_heuristic(Task, Current_Position, Heuristic).
+	calculate_heuristic(Task, Current_Position, New_Cost, Heuristic).
 
-calculate_heuristic(go(Target), Current_Position, Heuristic) :-
-	map_distance(Target, Current_Position, Heuristic).
+calculate_heuristic(go(Target), Position, _Cost, Heuristic) :-
+	map_distance(Target, Position, Heuristic).
 
-calculate_heuristic(find(_), _Current_Position, 0).
+calculate_heuristic(find(_), _Position, Cost, Cost).
 
-calculate_heuristic(go(_Target, Target_Position), Current_Position, Heuristic) :-
-	map_distance(Target_Position, Current_Position, Heuristic).
-
-
-heuristic_sortable(go(_)).
-heuristic_sortable(go(_,_)).
+calculate_heuristic(go(_Target, Target_Position), Position, _Cost, Heuristic) :-
+	map_distance(Target_Position, Position, Heuristic).
