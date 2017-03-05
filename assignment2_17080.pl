@@ -81,23 +81,6 @@ init_state(Task, Start_Position, State) :-
 	init_discoveries(Discoveries),
 	state_info(State, Agenda, Visited_Positions, Discoveries).
 
-% agenda
-update_state_agenda(New_Agenda, Current_State, New_State) :-
-	state_info(Current_State, _Current_Agenda, Visited_Positions, Discoveries),
-	state_info(New_State, New_Agenda, Visited_Positions, Discoveries).
-
-
-update_state_visited_positions(New_Visited_Positions, Current_State, New_State) :-
-	state_info(Current_State, Agenda, _Current_Visited_Positions, Discoveries),
-	state_info(New_State, Agenda, New_Visited_Positions, Discoveries).
-
-
-update_state_discoveries(New_Discoveries, Current_State, New_State) :-
-	state_info(Current_State, Agenda, Visited_Positions, _Current_Discoveries),
-	state_info(New_State, Agenda, Visited_Positions, New_Discoveries).
-
-
-
 % visited positions
 
 init_visited_positions(positions{}).
