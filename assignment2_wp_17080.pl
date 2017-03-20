@@ -24,8 +24,11 @@ ask_next_oracle(_Agent, [Our_Identity], Our_Identity) :-
 ask_next_oracle(Agent, Remaining_Actors, Our_Identity) :-
 	length(Remaining_Actors, Remaining_Actors_Count),
 	format("~w actors remaining\n", [Remaining_Actors_Count]),
-	agent_current_position(Agent, Start_Position),
-	agent_current_energy(Agent, Current_Energy),
+	(   part(4)
+	->  query_world(agent_current_position, [Agent, Start_Position]),
+	    query_world(agent_current_energy, [Agent, Current_Energy])
+	;   agent_current_position(Agent, Start_Position),
+	    agent_current_energy(Agent, Current_Energy)),
 	(   find_oracle(Agent, Start_Position, Current_Energy, o(O_N), Oracle_Position, Oracle_Path, Oracle_Cost)
 	->  Energy_After_Oracle is Current_Energy - Oracle_Cost - 12,
 	    (	find_station(Agent, Oracle_Position, Energy_After_Oracle, _Oracle_Charge_Station, _Oracle_Charge_Position, _Oracle_Charge_Path, _Oracle_Charge_Cost)
@@ -52,8 +55,11 @@ ask_next_oracle(Agent, Remaining_Actors, _) :-
 
 go_refuel(Agent, Start_Position) :-
 	find_station(Agent, Start_Position, 1000, Station, _Position, Path, _Cost),
-	agent_do_moves(Agent, Path),
-	agent_topup_energy(Agent, Station).
+	(   part(4)
+	->  query_world(agent_do_moves, [Agent, Path]),
+	    query_world(agent_topup_energy, [Agent, Station])
+	;   agent_do_moves(Agent, Path),
+	    agent_topup_energy(Agent, Station)).
 
 
 find_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
@@ -71,7 +77,9 @@ find_new_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cos
 	find_path(find(o(O_N)), Start_Position, Maximum_Cost, Position, Path, Cost, _Depth, Discoveries),
 	register_discoveries(Agent, Discoveries),
 	Oracle = o(O_N),
-	\+ agent_check_oracle(Agent, Oracle).
+	(   part(4)
+	->  \+ query_world(agent_check_oracle, [Agent, Oracle])
+	;   \+ agent_check_oracle(Agent, Oracle)).
 
 
 best_discovered_oracle(Agent, Position, o(O_N), Oracle_Position) :-
@@ -126,25 +134,29 @@ all_discovered_stations_acc(Agent, Position, Stations, All_Stations) :-
 	calculate_heuristic(go(Station, Station_Position), Position, Cost, Heuristic),
 	all_discovered_stations_acc(Agent, Position, [c(N, Station_Position, Heuristic)|Stations], All_Stations).
 
-all_discovered_stations_acc(_Position, Stations, Stations).
+all_discovered_stations_acc(_Agent, _Position, Stations, Stations).
 
 
 go_to_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
-	refuelling_move(Oracle_Path),
+	refuelling_move(Agent, Oracle_Path),
 	!,
-	agent_ask_oracle(Agent, Oracle, link, Link),
+	(   part(4)
+	->  query_world(agent_ask_oracle, [Agent, Oracle, link, Link])
+	;   agent_ask_oracle(Agent, Oracle, link, Link)),
 	retractall(discovered_oracle(Agent, Oracle, _)),
 	filter_actors(Link, Remaining_Actors, Filtered_Actors).
 
 
-refuelling_move([]).
+refuelling_move(_Agent, []).
 
-refuelling_move([Position|Path]) :-
-	agent_do_moves(oscar, [Position]),
+refuelling_move(Agent, [Position|Path]) :-
+	(   part(4)
+	->  query_world(agent_do_moves, [oscar, [Position]])
+	;   agent_do_moves(Agent, [Position])),
 	(   map_adjacent(Position, _, c(C_N))
-	->  agent_topup_energy(oscar, c(C_N))
+	->  agent_topup_energy(Agent, c(C_N))
 	;   true),
-	refuelling_move(Path).
+	refuelling_move(Agent, Path).
 
 
 actors(Actors) :-

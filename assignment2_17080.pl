@@ -3,18 +3,36 @@ candidate_number(17080).
 solve_task(Task,Cost) :-
 	(   part(1) -> solve_task_1_3(Task, Cost)
 	;   part(3) -> solve_task_1_3(Task, Cost)
-	%  ;   part(4) -> solve_task_4(Task, Cost)
+	;   part(4) -> solve_task_4(Task, Cost)
 	).
 
-%%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % solve_task_1_3(+Task, -Cost)
 solve_task_1_3(Task, [cost(Cost), depth(Depth)]) :-
-	agent_current_position(oscar, Start_Position),
-	agent_current_energy(oscar, Start_Energy),
-	find_path(Task, Start_Position, Start_Energy, _End_Position, Path, Cost, Depth, _Discoveries),
-	!, % Once we've found a solution, we hope that it's the best one
-	agent_do_moves(oscar, Path),
-	!. % we're done, prune any remaing choice points
+	(   part(1); part(3)
+	->  Agent = oscar,
+	    agent_current_position(Agent, Start_Position),
+	    agent_current_energy(Agent, Start_Energy),
+	    find_path(Task, Start_Position, Start_Energy, _End_Position, Path, Cost, Depth, _Discoveries),
+	    !, % Once we've found a solution, we hope that it's the best one
+	    agent_do_moves(Agent, Path),
+	    !  % we're done, prune any remaing choice points
+	;   !,
+	    fail).
+
+% solve_task_1_3(+Task, -Cost)
+solve_task_4(Task, [cost(Cost), depth(Depth)]):-
+	(   part(4)
+	->  my_agent(Agent),
+	    query_world(agent_current_position, [Agent, Start_Position]),
+	    query_world(agent_current_energy, [Agent, Start_Energy]),
+	    find_path(Task, Start_Position, Start_Energy, _End_Position, Path, Cost, Depth, _Discoveries),
+	    !, % Once we've found a solution, we hope that it's the best one
+	    query_world(agent_do_moves, [Agent, Path]),
+	    !  % we're done, prune any remaing choice points
+	;   !,
+	    fail).
+
 
 % find_path(+Task, +Start_Position, +Maximum_Cost, -End_Position, -Path,
 % -Cost, -Depth, -State)
@@ -30,18 +48,6 @@ find_path(Task, Start_Position, Maximum_Cost, End_Position, Path, Final_Cost, Fi
 	Reverse_Path = [End_Position|_],
 	reverse(Reverse_Path, [_Start_Position|Path]).
 
-%%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%% Part 4 (Optional) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%solve_task_4(Task,Cost):-
-%  my_agent(Agent),
-%  query_world( agent_current_position, [Agent,P] ),
-%  solve_task_bt(Task,[c(0,P),P],0,R,Cost,_NewPos),
-%  reverse(R,[_Init|Path]),
-%  query_world( agent_do_moves, [Agent,Path] ).
-%%%%%%%%%% Part 4 (Optional) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-%%%%%%%%%% Useful predicates %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % solve_task_bfs(+Task, +Maximum_Cost, -Current_State, -Final_Path,
 % -Discoveries)
 solve_task_bfs(Task, _Maximum_Cost, State, Path, Discoveries) :-
