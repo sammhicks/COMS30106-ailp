@@ -98,28 +98,23 @@ update_agenda(Current_Agenda, [Path|Paths], Final_Agenda) :-
 
 % visited positions
 
-init_visited_positions(positions{}).
+init_visited_positions(Positions) :-
+	rb_new(Positions).
 
-% query_position(+Position, +State, -Cost)
-already_visited_position(Visited_Positions, p(X, Y), Cost) :-
-	get_dict(Y, Visited_Positions, Row),
-	get_dict(X, Row, Cost).
+% query_position(+Position, +Path)
+already_visited_position(Visited_Positions, path(_Cost, _Depth, _Heuristic, [Position|_Path])) :-
+	rb_lookup(Position, _Visited_Heuristic, Visited_Positions).
 
 
 insert_previous_paths([], Visited_Positions, Visited_Positions).
 
-insert_previous_paths([path(Cost, _Depth, _Heuristic, [Position|_])|Paths], Current_Visited_Positions, Final_Visited_Positions) :-
-	insert_visited_position(Position, Cost, Current_Visited_Positions, New_Visited_Positions),
+insert_previous_paths([path(_Cost, _Depth, Heuristic, [Position|_])|Paths], Current_Visited_Positions, Final_Visited_Positions) :-
+	insert_visited_position(Position, Heuristic, Current_Visited_Positions, New_Visited_Positions),
 	insert_previous_paths(Paths, New_Visited_Positions, Final_Visited_Positions).
 
 
-insert_visited_position(p(X, Y), Cost, Current_Positions, New_Positions) :-
-	(   get_dict(Y, Current_Positions, Current_Row)
-	->  true
-	;   init_visited_positions(Current_Row)
-	),
-	put_dict(X, Current_Row, Cost, New_Row),
-	put_dict(Y, Current_Positions, New_Row, New_Positions).
+insert_visited_position(Position, Heuristic, Current_Positions, New_Positions) :-
+	rb_insert(Current_Positions, Position, Heuristic, New_Positions).
 
 % discoveries
 discovery_info(discoveries(Empty, Oracles, Stations), Empty, Oracles, Stations).
@@ -179,7 +174,7 @@ filter_positions(_Visited_Positions, _Maximum_Cost, [], []).
 
 filter_positions(Visited_Positions, Maximum_Cost, [Path|Paths], All_Filtered_Paths) :-
 	(   cost_too_high(Maximum_Cost, Path)
-	;   better_path_found(Visited_Positions, Path)
+	;   already_visited_position(Visited_Positions, Path)
 	->  All_Filtered_Paths = Filtered_Paths
 	;   All_Filtered_Paths = [Path|Filtered_Paths]
 	),
@@ -187,11 +182,6 @@ filter_positions(Visited_Positions, Maximum_Cost, [Path|Paths], All_Filtered_Pat
 
 cost_too_high(Maximum_Cost, path(Cost, _Depth, _Heuristic, _Path)) :-
 	Cost >= Maximum_Cost.
-
-better_path_found(Visited_Positions, path(Cost, _Depth, _Heuristic, [Position|_])) :-
-	already_visited_position(Visited_Positions, Position, Visited_Cost),
-	Visited_Cost =< Cost.
-
 
 % prepend_to_paths(+Previous_Path, +New_End_Positions, -New_Paths)
 prepend_to_paths(_Previous_Path, [], []).
@@ -213,10 +203,11 @@ construct_path(Task, Current_Cost, Current_Depth, Path, path(New_Cost, New_Depth
 	Path = [Current_Position|_],
 	calculate_heuristic(Task, Current_Position, New_Cost, Heuristic).
 
-calculate_heuristic(go(Target), Position, _Cost, Heuristic) :-
-	map_distance(Target, Position, Heuristic).
+calculate_heuristic(go(Target), Position, Cost, Heuristic) :-
+	map_distance(Target, Position, Distance),
+	Heuristic is Distance + Cost.
 
 calculate_heuristic(find(_), _Position, Cost, Cost).
 
-calculate_heuristic(go(_Target, Target_Position), Position, _Cost, Heuristic) :-
-	map_distance(Target_Position, Position, Heuristic).
+calculate_heuristic(go(_Target, Target_Position), Position, Cost, Heuristic) :-
+	calculate_heuristic(go(Target_Position), Position, Cost, Heuristic).
