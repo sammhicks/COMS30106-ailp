@@ -1,132 +1,139 @@
-% Find hidden identity by repeatedly calling agent_ask_oracle(oscar,o(1),link,L)
-% find_identity(-A)
+
+% find_identity(-Identity)
 find_identity(Identity) :-
-	reset_discoveries,
+	(   part(4)
+	->  my_agent(Agent)
+	;   Agent = oscar),
+	find_identity(Agent, Identity).
+
+% find_identity(+Agent, -Identity)
+find_identity(Agent, Identity) :-
+	reset_discoveries(Agent),
 	actors(Actors),
-	ask_next_oracle(Actors, Identity),
+	ask_next_oracle(Agent, Actors, Identity),
 	!.
 
-ask_next_oracle([], _Our_Identity) :-
+ask_next_oracle(Agent, [], _Our_Identity) :-
 	!,
-	format("No Identities Remaining!\n"),
+	format("No Identities Remaining for ~w!\n", [Agent]),
 	fail.
 
-ask_next_oracle([Our_Identity], Our_Identity) :-
+ask_next_oracle(_Agent, [Our_Identity], Our_Identity) :-
 	!.
 
-ask_next_oracle(Remaining_Actors, Our_Identity) :-
+ask_next_oracle(Agent, Remaining_Actors, Our_Identity) :-
 	length(Remaining_Actors, Remaining_Actors_Count),
 	format("~w actors remaining\n", [Remaining_Actors_Count]),
-	agent_current_position(oscar, Start_Position),
-	agent_current_energy(oscar, Current_Energy),
-	(   find_oracle(Start_Position, Current_Energy, o(O_N), Oracle_Position, Oracle_Path, Oracle_Cost)
+	agent_current_position(Agent, Start_Position),
+	agent_current_energy(Agent, Current_Energy),
+	(   find_oracle(Agent, Start_Position, Current_Energy, o(O_N), Oracle_Position, Oracle_Path, Oracle_Cost)
 	->  Energy_After_Oracle is Current_Energy - Oracle_Cost - 12,
-	    (	find_station(Oracle_Position, Energy_After_Oracle, _Oracle_Charge_Station, _Oracle_Charge_Position, _Oracle_Charge_Path, _Oracle_Charge_Cost)
-	    ->  go_to_oracle_and_ask(o(O_N), Oracle_Path, Remaining_Actors, Filtered_Actors),
+	    (	find_station(Agent, Oracle_Position, Energy_After_Oracle, _Oracle_Charge_Station, _Oracle_Charge_Position, _Oracle_Charge_Path, _Oracle_Charge_Cost)
+	    ->  go_to_oracle_and_ask(Agent, o(O_N), Oracle_Path, Remaining_Actors, Filtered_Actors),
 		!,
-		ask_next_oracle(Filtered_Actors, Our_Identity)
-	    ;   go_refuel(Start_Position),
+		ask_next_oracle(Agent, Filtered_Actors, Our_Identity)
+	    ;   go_refuel(Agent, Start_Position),
 		!,
-		ask_next_oracle(Remaining_Actors, Our_Identity))
+		ask_next_oracle(Agent, Remaining_Actors, Our_Identity))
 	;   map_adjacent(Start_Position, _, c(_))
 	->  !,
 	    fail
-	;   go_refuel(Start_Position),
+	;   go_refuel(Agent, Start_Position),
 	    !,
-	    ask_next_oracle(Remaining_Actors, Our_Identity)).
+	    ask_next_oracle(Agent, Remaining_Actors, Our_Identity)).
 
-ask_next_oracle(Remaining_Actors, _) :-
-	format("\nCannot find oracle. Possible Identities:\n\n"),
+ask_next_oracle(Agent, Remaining_Actors, _) :-
+	format("\n~w cannot find oracle. Possible Identities:\n\n", [Agent]),
 	!,
 	member(Actor, Remaining_Actors),
 	format("\t~w\n", [Actor]),
 	fail.
 
 
-go_refuel(Start_Position) :-
-	find_station(Start_Position, 1000, Station, _Position, Path, _Cost),
-	agent_do_moves(oscar, Path),
-	agent_topup_energy(oscar, Station).
+go_refuel(Agent, Start_Position) :-
+	find_station(Agent, Start_Position, 1000, Station, _Position, Path, _Cost),
+	agent_do_moves(Agent, Path),
+	agent_topup_energy(Agent, Station).
 
 
-find_oracle(Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
-	(   find_discovered_oracle(Start_Position, Maximum_Cost, Oracle, Position, Path, Cost)
-	;   find_new_oracle(Start_Position, Maximum_Cost, Oracle, Position, Path, Cost)).
+find_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
+	(   find_discovered_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost)
+	;   find_new_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost)).
 
 
-find_discovered_oracle(Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
-	best_discovered_oracle(Start_Position, Oracle, Position),
+find_discovered_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
+	best_discovered_oracle(Agent, Start_Position, Oracle, Position),
 	find_path(go(Oracle, Position), Start_Position, Maximum_Cost, _End_Position, Path, Cost, _Depth, Discoveries),
-	register_discoveries(Discoveries).
+	register_discoveries(Agent, Discoveries).
 
 
-find_new_oracle(Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
+find_new_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
 	find_path(find(o(O_N)), Start_Position, Maximum_Cost, Position, Path, Cost, _Depth, Discoveries),
-	register_discoveries(Discoveries),
+	register_discoveries(Agent, Discoveries),
 	Oracle = o(O_N),
-	\+ agent_check_oracle(oscar, Oracle).
+	\+ agent_check_oracle(Agent, Oracle).
 
 
-best_discovered_oracle(Position, o(O_N), Oracle_Position) :-
-	all_discovered_oracles_acc(Position, [], Oracles),
+best_discovered_oracle(Agent, Position, o(O_N), Oracle_Position) :-
+	all_discovered_oracles_acc(Agent, Position, [], Oracles),
 	sort(3, @=<, Oracles, Sorted_Oracles),
 	!,
 	member(o(O_N, Oracle_Position, _), Sorted_Oracles).
 
 
-all_discovered_oracles_acc(Position, Oracles, All_Oracles) :-
-	discovered_oracle(Oracle, Oracle_Position),
+all_discovered_oracles_acc(Agent, Position, Oracles, All_Oracles) :-
+	discovered_oracle(Agent, Oracle, Oracle_Position),
 	Oracle = o(N),
 	\+ memberchk(o(N, Oracle_Position, _), Oracles),
 	!,
 	Cost = 0,
 	calculate_heuristic(go(Oracle, Oracle_Position), Position, Cost, Heuristic),
-	all_discovered_oracles_acc(Position, [o(N, Oracle_Position, Heuristic)|Oracles], All_Oracles).
+	all_discovered_oracles_acc(Agent, Position, [o(N, Oracle_Position, Heuristic)|Oracles], All_Oracles).
 
-all_discovered_oracles_acc(_Position, Stations, Stations).
-
-
-find_station(Start_Position, Maximum_Cost, Station, Position, Path, Cost) :-
-	(   find_discovered_station(Start_Position, Maximum_Cost, Station, Position, Path, Cost)
-	;   find_new_station(Start_Position, Maximum_Cost, Station, Position, Path, Cost)).
+all_discovered_oracles_acc(_Agent, _Position, Stations, Stations).
 
 
-find_discovered_station(Start_Position, Maximum_Cost, Station, Position, Path, Cost) :-
-	best_discovered_station(Start_Position, Station, Position),
+find_station(Agent, Start_Position, Maximum_Cost, Station, Position, Path, Cost) :-
+	(   find_discovered_station(Agent, Start_Position, Maximum_Cost, Station, Position, Path, Cost)
+	;   find_new_station(Agent, Start_Position, Maximum_Cost, Station, Position, Path, Cost)).
+
+
+find_discovered_station(Agent, Start_Position, Maximum_Cost, Station, Position, Path, Cost) :-
+	best_discovered_station(Agent, Start_Position, Station, Position),
 	find_path(go(Station, Position), Start_Position, Maximum_Cost, _End_Position, Path, Cost, _Depth, Discoveries),
-	register_discoveries(Discoveries).
+	register_discoveries(Agent, Discoveries).
 
 
-find_new_station(Start_Position, Maximum_Cost, Station, Position, Path, Cost) :-
+find_new_station(Agent, Start_Position, Maximum_Cost, Station, Position, Path, Cost) :-
 	find_path(find(c(N)), Start_Position, Maximum_Cost, Position, Path, Cost, _Depth, Discoveries),
 	Station = c(N),
-	register_discoveries(Discoveries).
+	register_discoveries(Agent, Discoveries).
 
 
-best_discovered_station(Position, c(S_N), Station_Position) :-
-	all_discovered_stations_acc(Position, [], Stations),
+best_discovered_station(Agent, Position, c(S_N), Station_Position) :-
+	all_discovered_stations_acc(Agent, Position, [], Stations),
 	sort(3, @=<, Stations, Sorted_Stations),
 	!,
 	member(c(S_N, Station_Position, _), Sorted_Stations).
 
 
-all_discovered_stations_acc(Position, Stations, All_Stations) :-
-	discovered_station(Station, Station_Position),
+all_discovered_stations_acc(Agent, Position, Stations, All_Stations) :-
+	discovered_station(Agent, Station, Station_Position),
 	Station = c(N),
 	\+ memberchk(c(N, Station_Position, _), Stations),
 	!,
 	Cost = 0,
 	calculate_heuristic(go(Station, Station_Position), Position, Cost, Heuristic),
-	all_discovered_stations_acc(Position, [c(N, Station_Position, Heuristic)|Stations], All_Stations).
+	all_discovered_stations_acc(Agent, Position, [c(N, Station_Position, Heuristic)|Stations], All_Stations).
 
 all_discovered_stations_acc(_Position, Stations, Stations).
 
 
-go_to_oracle_and_ask(Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
+go_to_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
 	refuelling_move(Oracle_Path),
 	!,
-	agent_ask_oracle(oscar, Oracle, link, Link),
-	retractall(discovered_oracle(Oracle, _)),
+	agent_ask_oracle(Agent, Oracle, link, Link),
+	retractall(discovered_oracle(Agent, Oracle, _)),
 	filter_actors(Link, Remaining_Actors, Filtered_Actors).
 
 
@@ -161,34 +168,34 @@ filter_actors(Link, [Actor|Actors], All_Filtered_Actors) :-
 	filter_actors(Link, Actors, Filtered_Actors).
 
 
-:- dynamic(discovered_oracle/2).
-:- dynamic(discovered_station/2).
+:- dynamic(discovered_oracle/3).
+:- dynamic(discovered_station/3).
 
-reset_discoveries :-
-	retractall(discovered_oracle(_, _)),
-	retractall(discovered_station(_, _)).
+reset_discoveries(Agent) :-
+	retractall(discovered_oracle(Agent, _, _)),
+	retractall(discovered_station(Agent, _, _)).
 
-register_discoveries(Discoveries) :-
+register_discoveries(Agent, Discoveries) :-
 	discovery_info(Discoveries, _Empty, Oracles, Stations),
-	register_oracles(Oracles),
-	register_stations(Stations).
+	register_oracles(Agent, Oracles),
+	register_stations(Agent, Stations).
 
-register_oracles([]).
+register_oracles(_Agent, []).
 
-register_oracles([o(N, P)|Oracles]) :-
-	(   (discovered_oracle(o(N), P) ; agent_check_oracle(oscar, o(N)))
+register_oracles(Agent, [o(N, P)|Oracles]) :-
+	(   (discovered_oracle(Agent, o(N), P) ; agent_check_oracle(Agent, o(N)))
 	->  true
-	;   format("Found Oracle ~w at ~w\n", [N, P]),
-	    assertz(discovered_oracle(o(N), P))),
-	register_oracles(Oracles).
+	;   format("~w found Oracle ~w at ~w\n", [Agent, N, P]),
+	    assertz(discovered_oracle(Agent, o(N), P))),
+	register_oracles(Agent, Oracles).
 
 
 
-register_stations([]).
+register_stations(_Agent, []).
 
-register_stations([c(N, P)|Stations]) :-
-	(   discovered_station(c(N), P)
+register_stations(Agent, [c(N, P)|Stations]) :-
+	(   discovered_station(Agent, c(N), P)
 	->  true
-	;   format("Found Station ~w at ~w\n", [N, P]),
-	    assertz(discovered_station(c(N), P))),
-	register_oracles(Stations).
+	;   format("~w found Station ~w at ~w\n", [Agent, N, P]),
+	    assertz(discovered_station(Agent, c(N), P))),
+	register_stations(Agent, Stations).
