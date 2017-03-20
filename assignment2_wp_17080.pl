@@ -15,6 +15,8 @@ ask_next_oracle([Our_Identity], Our_Identity) :-
 	!.
 
 ask_next_oracle(Remaining_Actors, Our_Identity) :-
+	length(Remaining_Actors, Remaining_Actors_Count),
+	format("~w actors remaining\n", [Remaining_Actors_Count]),
 	agent_current_position(oscar, Start_Position),
 	agent_current_energy(oscar, Current_Energy),
 	(   find_oracle(Start_Position, Current_Energy, o(O_N), Oracle_Position, Oracle_Path, Oracle_Cost)
