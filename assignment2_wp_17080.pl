@@ -30,7 +30,7 @@ ask_next_oracle(Agent, Remaining_Actors, Our_Identity) :-
 	;   agent_current_position(Agent, Start_Position),
 	    agent_current_energy(Agent, Current_Energy)),
 	(   find_oracle(Agent, Start_Position, Current_Energy, o(O_N), Oracle_Position, Oracle_Path, Oracle_Cost)
-	->  Energy_After_Oracle is Current_Energy - Oracle_Cost - 12,
+	->  Energy_After_Oracle is Current_Energy - Oracle_Cost - 10,
 	    (	find_station(Agent, Oracle_Position, Energy_After_Oracle, _Oracle_Charge_Station, _Oracle_Charge_Position, _Oracle_Charge_Path, _Oracle_Charge_Cost)
 	    ->  go_to_oracle_and_ask(Agent, o(O_N), Oracle_Path, Remaining_Actors, Filtered_Actors),
 		!,
