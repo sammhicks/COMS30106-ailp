@@ -24,24 +24,20 @@ ask_next_oracle(_Agent, [Our_Identity], Our_Identity) :-
 ask_next_oracle(Agent, Remaining_Actors, Our_Identity) :-
 	length(Remaining_Actors, Remaining_Actors_Count),
 	format("~w actors remaining\n", [Remaining_Actors_Count]),
-	(   part(4)
-	->  query_world(agent_current_position, [Agent, Start_Position]),
-	    query_world(agent_current_energy, [Agent, Current_Energy])
-	;   agent_current_position(Agent, Start_Position),
-	    agent_current_energy(Agent, Current_Energy)),
+	get_my_status(Agent, Start_Position, Current_Energy),
 	(   find_oracle(Agent, Start_Position, Current_Energy, o(O_N), Oracle_Position, Oracle_Path, Oracle_Cost)
 	->  Energy_After_Oracle is Current_Energy - Oracle_Cost - 10,
 	    (	find_station(Agent, Oracle_Position, Energy_After_Oracle, _Oracle_Charge_Station, _Oracle_Charge_Position, _Oracle_Charge_Path, _Oracle_Charge_Cost)
 	    ->  go_to_oracle_and_ask(Agent, o(O_N), Oracle_Path, Remaining_Actors, Filtered_Actors),
 		!,
 		ask_next_oracle(Agent, Filtered_Actors, Our_Identity)
-	    ;   go_refuel(Agent, Start_Position),
+	    ;   go_refuel(Agent),
 		!,
 		ask_next_oracle(Agent, Remaining_Actors, Our_Identity))
 	;   map_adjacent(Start_Position, _, c(_))
 	->  !,
 	    fail
-	;   go_refuel(Agent, Start_Position),
+	;   go_refuel(Agent),
 	    !,
 	    ask_next_oracle(Agent, Remaining_Actors, Our_Identity)).
 
@@ -53,18 +49,25 @@ ask_next_oracle(Agent, Remaining_Actors, _) :-
 	fail.
 
 
-go_refuel(Agent, Start_Position) :-
-	find_station(Agent, Start_Position, 1000, Station, _Position, Path, _Cost),
+go_refuel(Agent) :-
+	(   part(4)
+	->  repeat % Keep searching until we find a station and refuel there
+	;   true),
+	get_my_status(Agent, Current_Position, Current_Energy),
+	find_station(Agent, Current_Position, Current_Energy, Station, _Position, Path, _Cost),
 	(   part(4)
 	->  query_world(agent_do_moves, [Agent, Path]),
 	    query_world(agent_topup_energy, [Agent, Station])
 	;   agent_do_moves(Agent, Path),
-	    agent_topup_energy(Agent, Station)).
+	    agent_topup_energy(Agent, Station)),
+	!.
 
 
 find_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
-	(   find_discovered_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost)
-	;   find_new_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost)).
+	find_discovered_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost).
+
+find_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
+	find_new_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost).
 
 
 find_discovered_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cost) :-
@@ -138,14 +141,28 @@ all_discovered_stations_acc(_Agent, _Position, Stations, Stations).
 
 
 go_to_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
-	refuelling_move(Agent, Oracle_Path),
-	!,
 	(   part(4)
-	->  query_world(agent_ask_oracle, [Agent, Oracle, link, Link])
-	;   agent_ask_oracle(Agent, Oracle, link, Link)),
-	retractall(discovered_oracle(Agent, Oracle, _)),
+	->  go_to_dynamic_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors)
+	;   go_to_static_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors)).
+
+go_to_static_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
+	refuelling_move(Agent, Oracle_Path),
+	ask_oracle_link(Agent, Oracle, Link),
 	filter_actors(Link, Remaining_Actors, Filtered_Actors).
 
+go_to_dynamic_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
+	(   refuelling_move(Agent, Oracle_Path)
+	->  ask_oracle_link(Agent, Oracle, Link),
+	    filter_actors(Link, Remaining_Actors, Filtered_Actors)
+	;   format("Oracle path invalid, researching!\n"),
+	    get_my_status(Agent, Current_Position, Current_Energy),
+	    find_oracle(Agent, Current_Position, Current_Energy, New_Oracle, _New_Position, New_Path, _Cost),
+	    go_to_dynamic_oracle_and_ask(Agent, New_Oracle, New_Path, Remaining_Actors, Filtered_Actors)).
+
+ask_oracle_link(Agent, Oracle, Link) :-
+	(   part(4)
+	->  query_world(agent_ask_oracle, [Agent, Oracle, link, Link])
+	;   agent_ask_oracle(Agent, Oracle, link, Link)).
 
 refuelling_move(_Agent, []).
 
@@ -220,3 +237,10 @@ register_stations(Agent, [c(N, P)|Stations]) :-
 	;   format("~w found Station ~w at ~w\n", [Agent, N, P]),
 	    assertz(discovered_station(Agent, c(N), P))),
 	register_stations(Agent, Stations).
+
+get_my_status(Agent, Position, Energy) :-
+	(   part(4)
+	->  query_world(agent_current_position, [Agent, Position]),
+	    query_world(agent_current_energy, [Agent, Energy])
+	;   agent_current_position(Agent, Position),
+	    agent_current_energy(Agent, Energy)).
