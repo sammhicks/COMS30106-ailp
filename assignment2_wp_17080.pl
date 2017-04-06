@@ -150,14 +150,21 @@ go_to_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Acto
 refuelling_move(_Agent, []).
 
 refuelling_move(Agent, [Position|Path]) :-
-	(   part(4)
-	->  query_world(agent_do_moves, [oscar, [Position]])
-	;   agent_do_moves(Agent, [Position])),
+	do_move(Agent, Position),
 	(   map_adjacent(Position, _, c(C_N))
-	->  agent_topup_energy(Agent, c(C_N))
+	->  do_refuel(Agent, c(C_N))
 	;   true),
 	refuelling_move(Agent, Path).
 
+do_move(Agent, Position) :-
+	(   part(4)
+	->  query_world(agent_do_moves, [Agent, [Position]])
+	;   agent_do_moves(Agent, [Position])).
+
+do_refuel(Agent, Station) :-
+	(   part(4)
+	->  query_world(agent_topup_energy, [Agent, Station])
+	;   agent_topup_energy(Agent, Station)).
 
 actors(Actors) :-
 	actors([], Actors).
@@ -188,9 +195,11 @@ reset_discoveries(Agent) :-
 	retractall(discovered_station(Agent, _, _)).
 
 register_discoveries(Agent, Discoveries) :-
-	discovery_info(Discoveries, _Empty, Oracles, Stations),
-	register_oracles(Agent, Oracles),
-	register_stations(Agent, Stations).
+	(   part(4)
+	->  true
+	;   discovery_info(Discoveries, _Empty, Oracles, Stations),
+	    register_oracles(Agent, Oracles),
+	    register_stations(Agent, Stations)).
 
 register_oracles(_Agent, []).
 
