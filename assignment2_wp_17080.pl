@@ -80,10 +80,12 @@ find_new_oracle(Agent, Start_Position, Maximum_Cost, Oracle, Position, Path, Cos
 	find_path(find(o(O_N)), Start_Position, Maximum_Cost, Position, Path, Cost, _Depth, Discoveries),
 	register_discoveries(Agent, Discoveries),
 	Oracle = o(O_N),
-	(   part(4)
-	->  \+ query_world(agent_check_oracle, [Agent, Oracle])
-	;   \+ agent_check_oracle(Agent, Oracle)).
+	\+ check_oracle(Agent, o(O_N)).
 
+check_oracle(Agent, Oracle) :-
+	(   part(4)
+	->  query_world(agent_check_oracle, [Agent, Oracle])
+	;   agent_check_oracle(Agent, Oracle)).
 
 best_discovered_oracle(Agent, Position, o(O_N), Oracle_Position) :-
 	all_discovered_oracles_acc(Agent, Position, [], Oracles),
@@ -148,6 +150,7 @@ go_to_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Acto
 go_to_static_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
 	refuelling_move(Agent, Oracle_Path),
 	ask_oracle_link(Agent, Oracle, Link),
+	retractall(discovered_oracle(Agent, Oracle, _)),
 	filter_actors(Link, Remaining_Actors, Filtered_Actors).
 
 go_to_dynamic_oracle_and_ask(Agent, Oracle, Oracle_Path, Remaining_Actors, Filtered_Actors) :-
